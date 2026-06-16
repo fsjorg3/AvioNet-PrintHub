@@ -59,8 +59,14 @@ export async function handleWebhookEvent(req, res) {
         // 1. Manejar Mensajes Entrantes
         if (value.messages) {
           for (const message of value.messages) {
-            const from = message.from; // Número de teléfono del usuario
+            let from = message.from; // Número de teléfono del usuario
             const messageId = message.id;
+
+            // Corrección para México: Si empieza con 521 y tiene 13 dígitos, quitamos el 1.
+            if (from.startsWith('521') && from.length === 13) {
+              console.log(`[WEBHOOK] 🛠️ Corrigiendo prefijo de México: "${from}" -> "52${from.substring(3)}"`);
+              from = '52' + from.substring(3);
+            }
 
             console.log(`\n[WEBHOOK] 📩 Nuevo mensaje entrante de: "${from}" (Longitud: ${from.length})`);
             console.log(`[WEBHOOK] 📄 Tipo de mensaje: ${message.type}`);
