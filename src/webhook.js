@@ -62,7 +62,8 @@ export async function handleWebhookEvent(req, res) {
             const from = message.from; // Número de teléfono del usuario
             const messageId = message.id;
 
-            console.log(`Mensaje recibido de ${from}:`, message);
+            console.log(`\n[WEBHOOK] 📩 Nuevo mensaje entrante de: ${from}`);
+            console.log(`[WEBHOOK] 📄 Tipo de mensaje: ${message.type}`);
 
             let isValidDocument = false;
             let doc = null;
@@ -79,6 +80,7 @@ export async function handleWebhookEvent(req, res) {
               const isDoc = mimeType === 'application/msword' || ext === '.doc';
               
               if (isPDF || isDocx || isDoc) {
+                console.log(`[WEBHOOK] ✅ Formato válido: ${ext} (MIME: ${mimeType})`);
                 isValidDocument = true;
                 finalFilename = originalFilename;
                 if (isPDF && !finalFilename.toLowerCase().endsWith('.pdf')) {
@@ -88,6 +90,8 @@ export async function handleWebhookEvent(req, res) {
                 } else if (isDoc && !finalFilename.toLowerCase().endsWith('.doc')) {
                   finalFilename += '.doc';
                 }
+              } else {
+                console.warn(`[WEBHOOK] ⚠️ Formato no válido rechazado: ${ext} (MIME: ${mimeType})`);
               }
             }
 

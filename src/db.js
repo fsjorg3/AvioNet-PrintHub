@@ -20,6 +20,7 @@ db.exec(`
  * Guarda un registro de impresión pendiente
  */
 export function savePendingPrint(pin, filename, filepath, phone) {
+  console.log(`[DB] 💾 Guardando impresión pendiente -> PIN: ${pin} | Archivo: ${filename}`);
   const stmt = db.prepare('INSERT INTO pending_prints (pin, filename, filepath, phone) VALUES (?, ?, ?, ?)');
   stmt.run(pin, filename, filepath, phone);
 }
@@ -41,13 +42,14 @@ export function deletePendingPrint(pin) {
     try {
       if (fs.existsSync(record.filepath)) {
         fs.unlinkSync(record.filepath);
-        console.log(`Archivo físico eliminado: ${record.filepath}`);
+        console.log(`[DB] 🗑️  Archivo físico eliminado: ${record.filepath}`);
       }
     } catch (err) {
-      console.error(`Error al eliminar el archivo físico ${record.filepath}:`, err);
+      console.error(`[DB] ❌ Error al eliminar el archivo físico ${record.filepath}:`, err);
     }
     const stmt = db.prepare('DELETE FROM pending_prints WHERE pin = ?');
     stmt.run(pin);
+    console.log(`[DB] 🗑️  Registro eliminado de la base de datos para el PIN: ${pin}`);
     return true;
   }
   return false;
@@ -67,6 +69,7 @@ export function generateUniquePin() {
       exists = false;
     }
   }
+  console.log(`[DB] 🔑 Nuevo PIN generado: ${pin}`);
   return pin;
 }
 

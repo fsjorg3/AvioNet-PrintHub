@@ -39,6 +39,12 @@ app.use('/v1/kiosk', kioskLimiter);
 
 // --- MIDDLEWARES ---
 
+// Middleware para loggear todas las peticiones en desarrollo
+app.use((req, res, next) => {
+  console.log(`\n[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // Parsear cuerpo crudo para validar la firma digital de Meta (solo para el webhook)
 app.use(express.json({
   verify: verifySignature

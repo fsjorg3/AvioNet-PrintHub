@@ -19,11 +19,13 @@ async function sendToWhatsApp(payload) {
     
     const data = await response.json();
     if (!response.ok) {
+      console.error(`[WHATSAPP] ❌ Error enviando mensaje: ${JSON.stringify(data)}`);
       throw new Error(`WhatsApp API Error: ${JSON.stringify(data)}`);
     }
+    console.log(`[WHATSAPP] 🚀 Mensaje enviado con éxito a WhatsApp.`);
     return data;
   } catch (error) {
-    console.error('Error al enviar mensaje a WhatsApp:', error);
+    console.error('[WHATSAPP] ❌ Excepción al enviar mensaje a WhatsApp:', error);
     throw error;
   }
 }
@@ -85,17 +87,20 @@ export async function downloadMediaFile(mediaUrlOrId, destinationPath) {
     
     if (!res.ok) {
       const errData = await res.json();
+      console.error(`[WHATSAPP] ❌ Error Meta API al obtener URL:`, errData);
       throw new Error(`Error al obtener metadatos del medio: ${JSON.stringify(errData)}`);
     }
     
     const mediaData = await res.json();
     downloadUrl = mediaData.url;
+    console.log(`[WHATSAPP] 🔗 URL del medio obtenida: ${downloadUrl}`);
     
     if (!downloadUrl) {
       throw new Error(`No se encontró la URL de descarga para el mediaId: ${mediaUrlOrId}`);
     }
   }
   
+  console.log(`[WHATSAPP] ⬇️ Iniciando descarga desde CDN de Meta...`);
   // 2. Descargar el archivo binario (usando la URL directa de CDN o la obtenida del paso anterior)
   const fileRes = await fetch(downloadUrl, {
     headers: {
@@ -104,8 +109,11 @@ export async function downloadMediaFile(mediaUrlOrId, destinationPath) {
   });
   
   if (!fileRes.ok) {
+    console.error(`[WHATSAPP] ❌ Error descargando archivo desde CDN. HTTP ${fileRes.status}`);
     throw new Error(`Error al descargar el archivo físico: ${fileRes.statusText}`);
   }
+  
+  console.log(`[WHATSAPP] ✅ Archivo físico descargado de Meta con éxito.`);
   
   // Guardar el archivo físicamente
   const arrayBuffer = await fileRes.arrayBuffer();
