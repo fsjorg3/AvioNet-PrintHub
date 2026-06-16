@@ -7,6 +7,10 @@ import { cleanupExpiredPrints } from './db.js';
 
 const app = express();
 
+// Configuración para proxies inversos (Render, Heroku, Nginx, etc.)
+// Necesario para que express-rate-limit lea correctamente las IPs de los usuarios y no lance error.
+app.set('trust proxy', 1);
+
 // --- SISTEMAS DE SEGURIDAD (Rate Limiting) ---
 
 // 1. Limitador para el Webhook (evita inundaciones)
