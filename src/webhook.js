@@ -35,7 +35,7 @@ export function verifySignature(req, res, buf, encoding) {
 
   const elements = signature.split('=');
   const signatureHash = elements[1];
-  
+
   const expectedHash = crypto
     .createHmac('sha256', config.appSecret || '')
     .update(buf)
@@ -62,23 +62,23 @@ export async function handleWebhookEvent(req, res) {
             const from = message.from; // Número de teléfono del usuario
             const messageId = message.id;
 
-            console.log(`\n[WEBHOOK] 📩 Nuevo mensaje entrante de: ${from}`);
+            console.log(`\n[WEBHOOK] 📩 Nuevo mensaje entrante de: "${from}" (Longitud: ${from.length})`);
             console.log(`[WEBHOOK] 📄 Tipo de mensaje: ${message.type}`);
 
             let isValidDocument = false;
             let doc = null;
             let finalFilename = '';
-            
+
             if (message.type === 'document') {
               doc = message.document;
               const mimeType = doc.mime_type || '';
               const originalFilename = doc.filename || 'documento';
               const ext = path.extname(originalFilename).toLowerCase();
-              
+
               const isPDF = mimeType === 'application/pdf' || ext === '.pdf';
               const isDocx = mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || ext === '.docx';
               const isDoc = mimeType === 'application/msword' || ext === '.doc';
-              
+
               if (isPDF || isDocx || isDoc) {
                 console.log(`[WEBHOOK] ✅ Formato válido: ${ext} (MIME: ${mimeType})`);
                 isValidDocument = true;
@@ -99,18 +99,18 @@ export async function handleWebhookEvent(req, res) {
               try {
                 // Notificar al usuario que estamos procesando el archivo
                 await sendTextMessage(from, '⏳ Recibiendo tu documento... Por favor espera un momento mientras generamos tu PIN.');
-                
+
                 const pin = generateUniquePin();
                 // Limpiar caracteres extraños del nombre de archivo
                 const safeFilename = `${pin}_${finalFilename.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
                 const filepath = path.join(TEMP_DIR, safeFilename);
-                
+
                 // Descargar el archivo físicamente
                 await downloadMediaFile(doc.url || doc.id, filepath);
-                
+
                 // Guardar en la base de datos
                 savePendingPrint(pin, finalFilename, filepath, from);
-                
+
                 // Enviar confirmación con el PIN y el aviso de 10 minutos
                 await sendTextMessage(from, `✅ ¡Documento recibido con éxito en AvioNet PrintHub! 📄\n\nTu PIN de impresión es: *${pin}*\n\nPreséntalo en la pantalla del kiosco para liberar e imprimir tu archivo.\n\n⚠️ *Aviso:* Si no realizas la impresión en menos de 10 minutos, el archivo será eliminado de forma segura.`);
               } catch (err) {

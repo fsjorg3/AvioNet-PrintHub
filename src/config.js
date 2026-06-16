@@ -7,7 +7,8 @@ export const config = {
   appSecret: process.env.APP_SECRET,
   accessToken: process.env.ACCESS_TOKEN,
   phoneNumberId: process.env.PHONE_NUMBER_ID,
-  apiVersion: process.env.API_VERSION || 'v20.0'
+  apiVersion: process.env.API_VERSION || 'v20.0',
+  allowedNumbers: ['5224820837180'],
 };
 
 // Validar que las variables esenciales existan
