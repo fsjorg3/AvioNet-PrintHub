@@ -1,0 +1,17 @@
+{
+  "name": "avionet-printhub",
+  "version": "1.0.0",
+  "description": "WhatsApp Business Platform Integration for AvioNet PrintHub",
+  "main": "src/app.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.5.2"
+  }
+}
