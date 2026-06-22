@@ -12,9 +12,18 @@ db.exec(`
     filename TEXT NOT NULL,
     filepath TEXT NOT NULL,
     phone TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    downloaded_at DATETIME DEFAULT NULL
   )
 `);
+
+// Migración: agregar downloaded_at en bases de datos existentes que no la tengan
+try {
+  db.exec('ALTER TABLE pending_prints ADD COLUMN downloaded_at DATETIME DEFAULT NULL');
+  console.log('[DB] 🔧 Migración aplicada: columna downloaded_at agregada.');
+} catch {
+  // La columna ya existe, no se necesita migración
+}
 
 /**
  * Guarda un registro de impresión pendiente
@@ -74,16 +83,33 @@ export function generateUniquePin() {
 }
 
 /**
- * Tarea programada: Elimina los registros y archivos físicos que tienen más de 10 minutos
+ * Marca un PIN como descargado. El archivo persiste 5 minutos más para reintentos.
+ */
+export function markAsDownloaded(pin) {
+  const stmt = db.prepare("UPDATE pending_prints SET downloaded_at = datetime('now') WHERE pin = ?");
+  const result = stmt.run(pin);
+  if (result.changes > 0) {
+    console.log(`[DB] ✅ PIN ${pin} marcado como descargado. Expira en 5 minutos.`);
+  }
+}
+
+/**
+ * Tarea programada: elimina registros según la política de expiración:
+ * - Sin descarga: expiran a los 10 minutos desde created_at
+ * - Con descarga: expiran a los 5 minutos desde downloaded_at
  */
 export function cleanupExpiredPrints() {
   try {
-    // CURRENT_TIMESTAMP es UTC, datetime('now', '-10 minute') compara correctamente
-    const stmt = db.prepare("SELECT pin FROM pending_prints WHERE created_at <= datetime('now', '-10 minute')");
+    const stmt = db.prepare(`
+      SELECT pin FROM pending_prints WHERE
+        (downloaded_at IS NULL     AND created_at    <= datetime('now', '-10 minute'))
+        OR
+        (downloaded_at IS NOT NULL AND downloaded_at <= datetime('now', '-5 minute'))
+    `);
     const expiredRecords = stmt.all();
-    
+
     for (const record of expiredRecords) {
-      console.log(`⏱️ El documento asociado al PIN ${record.pin} ha expirado (más de 10 min). Eliminando...`);
+      console.log(`⏱️ PIN ${record.pin} expirado. Eliminando...`);
       deletePendingPrint(record.pin);
     }
   } catch (err) {

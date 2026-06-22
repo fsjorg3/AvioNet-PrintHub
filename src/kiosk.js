@@ -1,5 +1,5 @@
 import { config } from './config.js';
-import { getPendingPrint, deletePendingPrint } from './db.js';
+import { getPendingPrint, deletePendingPrint, markAsDownloaded } from './db.js';
 
 /**
  * Middleware para autorizar al kiosco (Host) usando el VERIFY_TOKEN
@@ -68,14 +68,13 @@ export function handleDownloadFile(req, res) {
 
   res.download(record.filepath, record.filename, (err) => {
     if (err) {
-      console.error(`Error al enviar el archivo físico para el PIN ${pin}:`, err);
-      // Solo responder si los headers de respuesta no se han enviado todavía
+      console.error(`[KIOSK] ❌ Error al enviar el archivo para el PIN ${pin}:`, err);
       if (!res.headersSent) {
         res.status(500).json({ success: false, message: 'Error interno al descargar el archivo.' });
       }
     } else {
-      console.log(`Descarga exitosa del PIN ${pin}. Eliminando registro y archivo temporal...`);
-      deletePendingPrint(pin);
+      console.log(`[KIOSK] ✅ Descarga exitosa del PIN ${pin}. El archivo persiste 5 minutos para reintentos.`);
+      markAsDownloaded(pin);
     }
   });
 }

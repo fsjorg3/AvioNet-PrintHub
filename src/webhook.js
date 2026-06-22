@@ -49,6 +49,9 @@ export function verifySignature(req, res, buf, encoding) {
 // Tipos de mensaje que Meta envía pero que no requieren respuesta al usuario
 const SILENT_MESSAGE_TYPES = new Set(['reaction', 'system', 'unknown', 'unsupported']);
 
+// Texto que envía el QR del kiosco al abrirse la conversación
+const QR_GREETING_TEXT = '¡Este es mi documento a imprimir!';
+
 // Procesar eventos entrantes
 export async function handleWebhookEvent(req, res) {
   const body = req.body;
@@ -88,8 +91,12 @@ export async function handleWebhookEvent(req, res) {
 
             if (messageType === 'document') {
               await processDocument(message, from);
+            } else if (messageType === 'text' && message.text?.body === QR_GREETING_TEXT) {
+              // El usuario escaneó el QR del kiosco — orientarlo a enviar su archivo
+              console.log(`[WEBHOOK] 📲 Saludo QR detectado de: "${from}"`);
+              await sendTextMessage(from, '¡Hola! 👋 Bienvenido a *AvioNet PrintHub*.\n\nPara imprimir tu documento, solo envíalo en este chat en formato *PDF (.pdf)* o *Word (.doc, .docx)* y te generaremos un PIN para recogerlo en el kiosco.');
             } else {
-              // Texto, imagen, audio, video, sticker, ubicación, contacto, etc.
+              // Texto libre, imagen, audio, video, sticker, ubicación, contacto, etc.
               console.log(`[WEBHOOK] ℹ️ Tipo "${messageType}" no procesable — enviando instrucciones.`);
               await sendTextMessage(from, 'Para imprimir en nuestro kiosco, envía un archivo en formato *PDF (.pdf)* o *Word (.doc, .docx)*.\n\nNo se ha almacenado nada de tu mensaje anterior.\n\n🌐 Para otros servicios visita: https://www.avionet.com.mx');
             }
