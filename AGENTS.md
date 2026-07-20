@@ -29,7 +29,7 @@ Copia `backend/.env.sample` a `backend/.env` y completa las credenciales de Meta
 - `PORT` — valor predeterminado: 10000
 - `ADMIN_USER` / `ADMIN_PASSWORD` — credenciales de HTTP Basic Auth para los endpoints del panel `/v1/admin/*`
 - `ADMIN_SESSION_SECRET` — secreto aleatorio utilizado para firmar las cookies de sesión del panel
-- `CORS_ORIGIN` — orígenes web autorizados, separados por comas (por ejemplo, `http://localhost:5173,https://panel.onrender.com`)
+- `CORS_ORIGIN` — orígenes web autorizados, separados por comas. Admite orígenes exactos y redes IPv4 en CIDR con protocolo y puerto (por ejemplo, `http://localhost:5173,http://192.168.1.0/24:5173,https://panel.onrender.com`)
 
 ## Arquitectura
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AppBar, Box, Button, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, useMediaQuery } from '@mui/material';
+import { AppBar, Box, Button, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { Dashboard, Factory, Inventory2, Logout, Menu, Print, ReceiptLong } from '@mui/icons-material';
 import { NavLink, Outlet, useNavigate } from 'react-router';
 import { useMutation } from '@tanstack/react-query';
@@ -8,6 +8,7 @@ import { queryClient } from '../queryClient';
 import { useAuth } from '../authContext';
 
 const drawerWidth = 252;
+const desktopAppBarHeight = 72;
 const links = [
   { to: '/dashboard', label: 'Dashboard', icon: <Dashboard /> },
   { to: '/kiosks', label: 'Kioscos', icon: <Factory /> },
@@ -17,24 +18,98 @@ const links = [
 ];
 
 export function AppLayout() {
-  const compact = useMediaQuery('(max-width:900px)');
+  const theme = useTheme();
+  const compact = useMediaQuery(theme.breakpoints.down('md'));
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const logout = useMutation({ mutationFn: adminApi.logout, onSuccess: () => { queryClient.clear(); navigate('/login'); } });
+  const logout = useMutation({
+    mutationFn: adminApi.logout,
+    onSuccess: () => {
+      queryClient.clear();
+      navigate('/login');
+    },
+  });
+
   const menu = (
-    <>
-      <Toolbar><Box><Typography variant="h6" color="primary" sx={{ fontWeight: 800 }}>AvioNet</Typography><Typography variant="caption" color="text.secondary">PrintHub Admin</Typography></Box></Toolbar>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
+      <Toolbar sx={{ minHeight: { xs: 64, md: desktopAppBarHeight } }}>
+        <Box>
+          <Typography variant="h6" color="primary" sx={{ fontWeight: 800 }}>AvioNet</Typography>
+          <Typography variant="caption" color="text.secondary">PrintHub Admin</Typography>
+        </Box>
+      </Toolbar>
       <Divider />
       <List sx={{ px: 1, py: 1 }}>
-        {links.map(({ to, label, icon }) => <ListItemButton key={to} component={NavLink} to={to} onClick={() => setOpen(false)} sx={{ borderRadius: 2, mb: .5, '&.active': { bgcolor: 'primary.main', color: 'primary.contrastText', '& .MuiListItemIcon-root': { color: 'inherit' } } }}><ListItemIcon>{icon}</ListItemIcon><ListItemText primary={label} /></ListItemButton>)}
+        {links.map(({ to, label, icon }) => (
+          <ListItemButton
+            key={to}
+            component={NavLink}
+            to={to}
+            onClick={() => setOpen(false)}
+            sx={{
+              borderRadius: 2,
+              mb: 0.5,
+              '&.active': {
+                bgcolor: 'primary.main',
+                color: 'primary.contrastText',
+                '& .MuiListItemIcon-root': { color: 'inherit' },
+              },
+            }}
+          >
+            <ListItemIcon>{icon}</ListItemIcon>
+            <ListItemText primary={label} />
+          </ListItemButton>
+        ))}
       </List>
-      <Box sx={{ mt: 'auto', p: 2 }}><Typography variant="caption" color="text.secondary">Sesión: {user}</Typography><Button fullWidth sx={{ mt: 1 }} color="inherit" startIcon={<Logout />} onClick={() => logout.mutate()}>Cerrar sesión</Button></Box>
-    </>
+      <Box sx={{ mt: 'auto', p: 2 }}>
+        <Typography variant="caption" color="text.secondary">Sesión: {user}</Typography>
+        <Button fullWidth sx={{ mt: 1 }} color="inherit" startIcon={<Logout />} onClick={() => logout.mutate()}>
+          Cerrar sesión
+        </Button>
+      </Box>
+    </Box>
   );
-  return <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-    <AppBar position="fixed" sx={{ zIndex: theme => theme.zIndex.drawer + 1, bgcolor: '#071B73' }}><Toolbar>{compact && <IconButton color="inherit" onClick={() => setOpen(true)}><Menu /></IconButton>}<Typography variant="h6" sx={{ fontWeight: 700 }}>AvioNet PrintHub</Typography></Toolbar></AppBar>
-    <Drawer variant={compact ? 'temporary' : 'permanent'} open={compact ? open : true} onClose={() => setOpen(false)} ModalProps={{ keepMounted: true }} sx={{ '& .MuiDrawer-paper': { width: drawerWidth, boxSizing: 'border-box', display: 'flex' } }}>{menu}</Drawer>
-    <Box component="main" sx={{ flexGrow: 1, pt: 10, px: { xs: 2, md: 4 }, pb: 4, minWidth: 0 }}><Outlet /></Box>
-  </Box>;
+
+  return (
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+      <AppBar position="fixed" sx={{ zIndex: theme.zIndex.drawer + 1, bgcolor: 'primary.main' }}>
+        <Toolbar sx={{ minHeight: { xs: 64, md: desktopAppBarHeight } }}>
+          {compact && <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => setOpen(true)} aria-label="Abrir navegación"><Menu /></IconButton>}
+          <Typography variant="h6" sx={{ fontWeight: 700, fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>AvioNet PrintHub</Typography>
+        </Toolbar>
+      </AppBar>
+      <Drawer
+        variant={compact ? 'temporary' : 'permanent'}
+        open={compact ? open : true}
+        onClose={() => setOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          width: { md: drawerWidth },
+          flexShrink: { md: 0 },
+          '& .MuiDrawer-paper': {
+            width: drawerWidth,
+            boxSizing: 'border-box',
+            top: { md: desktopAppBarHeight },
+            height: { md: `calc(100% - ${desktopAppBarHeight}px)` },
+          },
+        }}
+      >
+        {menu}
+      </Drawer>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          width: { xs: '100%', md: `calc(100% - ${drawerWidth}px)` },
+          minWidth: 0,
+          pt: { xs: 10, md: 11 },
+          px: { xs: 2, sm: 3, md: 4, lg: 5 },
+          pb: { xs: 3, md: 5 },
+        }}
+      >
+        <Outlet />
+      </Box>
+    </Box>
+  );
 }

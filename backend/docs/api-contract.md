@@ -4,11 +4,13 @@ Todas las respuestas son JSON. Los endpoints con cuerpo esperan `Content-Type: a
 
 ## CORS
 
-El backend permite solicitudes desde los orígenes configurados en `CORS_ORIGIN`, una lista separada por comas. Ejemplo para desarrollo y Render:
+El backend permite solicitudes desde los orígenes configurados en `CORS_ORIGIN`, una lista separada por comas. Puede contener orígenes exactos y redes IPv4 locales en formato CIDR. Ejemplo para desarrollo desde un teléfono conectado a la misma red Wi‑Fi:
 
 ```env
-CORS_ORIGIN=http://localhost:5173,https://panel-printhub.onrender.com
+CORS_ORIGIN=http://localhost:5173,http://192.168.1.0/24:5173,https://panel-printhub.onrender.com
 ```
+
+Una regla CIDR debe incluir protocolo y puerto, por ejemplo `http://192.168.1.0/24:5173`. No se admite `192.168.1.*` ni el comodín `*`: al usar cookies con `credentials: 'include'`, CORS debe devolver el origen concreto en `Access-Control-Allow-Origin`.
 
 Las solicitudes del frontend que usan sesión deben incluir `credentials: 'include'`. La API responde con `403` y código `CORS_ORIGIN_DENIED` si el encabezado `Origin` no está permitido.
 

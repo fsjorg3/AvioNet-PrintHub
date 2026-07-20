@@ -1,4 +1,5 @@
 :root { font-family: "Plus Jakarta Sans", Arial, sans-serif; color: #334155; background: #f8fafc; }
 * { box-sizing: border-box; }
 html, body, #root { min-width: 320px; min-height: 100vh; margin: 0; }
+body { overflow-x: hidden; }
 a { color: inherit; text-decoration: none; }
