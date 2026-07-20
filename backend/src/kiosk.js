@@ -1,5 +1,6 @@
 import { config } from './config.js';
-import { getPendingPrint, deletePendingPrint, markAsDownloaded } from './db.js';
+import { getPendingPrint, markAsDownloaded } from './db.js';
+import { sendError } from './http.js';
 
 /**
  * Middleware para autorizar al kiosco (Host) usando el VERIFY_TOKEN
@@ -7,10 +8,11 @@ import { getPendingPrint, deletePendingPrint, markAsDownloaded } from './db.js';
 export function verifyKioskToken(req, res, next) {
   const token = req.query.token || req.headers['x-verify-token'];
   if (!token || token !== config.verifyToken) {
-    console.warn(`[KIOSK] ❌ Intento de acceso denegado. Token proporcionado: ${token}`);
-    return res.status(403).json({ 
-      success: false, 
-      message: 'Acceso prohibido: Token de verificación inválido o ausente.' 
+    console.warn('[KIOSK] ❌ Intento de acceso denegado: token inválido o ausente.');
+    return sendError(res, {
+      status: 403,
+      code: 'KIOSK_TOKEN_INVALID',
+      message: 'El token de verificación del kiosco es inválido o no fue enviado.',
     });
   }
   console.log(`[KIOSK] ✅ Token validado correctamente.`);
@@ -26,13 +28,22 @@ export function handleGetFileInfo(req, res) {
   
   if (!pin) {
     console.warn(`[KIOSK] ❌ Falta el parámetro "pin".`);
-    return res.status(400).json({ success: false, message: 'Parámetro "pin" es requerido.' });
+    return sendError(res, {
+      status: 400,
+      code: 'PIN_REQUIRED',
+      message: 'Incluye el parámetro de consulta "pin" para consultar el archivo.',
+    });
   }
 
   const record = getPendingPrint(pin);
   if (!record) {
     console.warn(`[KIOSK] ❌ El PIN ${pin} no fue encontrado o expiró.`);
-    return res.status(404).json({ success: false, message: 'El PIN proporcionado no existe o ya expiró.' });
+    return sendError(res, {
+      status: 404,
+      code: 'PRINT_NOT_AVAILABLE',
+      message: 'No existe una impresión disponible para el PIN proporcionado. Puede ser incorrecto o su archivo físico ya expiró.',
+      details: { pin },
+    });
   }
 
   console.log(`[KIOSK] ✅ Información encontrada para PIN ${pin}: ${record.filename}`);
@@ -55,13 +66,22 @@ export function handleDownloadFile(req, res) {
 
   if (!pin) {
     console.warn(`[KIOSK] ❌ Falta el parámetro "pin" para descarga.`);
-    return res.status(400).json({ success: false, message: 'Parámetro "pin" es requerido.' });
+    return sendError(res, {
+      status: 400,
+      code: 'PIN_REQUIRED',
+      message: 'Incluye el parámetro de consulta "pin" para descargar el archivo.',
+    });
   }
 
   const record = getPendingPrint(pin);
   if (!record) {
     console.warn(`[KIOSK] ❌ No se pudo descargar. PIN ${pin} no existe.`);
-    return res.status(404).json({ success: false, message: 'No se encontró archivo asociado a este PIN.' });
+    return sendError(res, {
+      status: 404,
+      code: 'PRINT_FILE_NOT_FOUND',
+      message: 'No existe un archivo disponible para el PIN proporcionado.',
+      details: { pin },
+    });
   }
 
   console.log(`[KIOSK] 📦 Enviando archivo ${record.filename} al cliente...`);
@@ -70,7 +90,12 @@ export function handleDownloadFile(req, res) {
     if (err) {
       console.error(`[KIOSK] ❌ Error al enviar el archivo para el PIN ${pin}:`, err);
       if (!res.headersSent) {
-        res.status(500).json({ success: false, message: 'Error interno al descargar el archivo.' });
+        sendError(res, {
+          status: 500,
+          code: 'FILE_DOWNLOAD_FAILED',
+          message: 'No se pudo transmitir el archivo al kiosco. Revisa si el archivo aún existe en el servidor.',
+          details: { pin },
+        });
       }
     } else {
       console.log(`[KIOSK] ✅ Descarga exitosa del PIN ${pin}. El archivo persiste 5 minutos para reintentos.`);

@@ -29,8 +29,10 @@ export function handleVerification(req, res) {
 export function verifySignature(req, res, buf, encoding) {
   const signature = req.headers['x-hub-signature-256'];
   if (!signature) {
-    console.warn('Falta firma x-hub-signature-256 en cabeceras.');
-    return;
+    const err = new Error('Falta la cabecera X-Hub-Signature-256 requerida para validar el webhook.');
+    err.status = 401;
+    err.code = 'WEBHOOK_SIGNATURE_MISSING';
+    throw err;
   }
 
   const elements = signature.split('=');
@@ -42,7 +44,10 @@ export function verifySignature(req, res, buf, encoding) {
     .digest('hex');
 
   if (signatureHash !== expectedHash) {
-    throw new Error('No se pudo validar la firma de la petición.');
+    const err = new Error('La firma X-Hub-Signature-256 no coincide con el cuerpo recibido.');
+    err.status = 401;
+    err.code = 'WEBHOOK_SIGNATURE_INVALID';
+    throw err;
   }
 }
 
@@ -149,4 +154,3 @@ async function processDocument(message, from) {
     await sendTextMessage(from, '❌ Ocurrió un error al procesar tu documento. Por favor, intenta enviarlo de nuevo.');
   }
 }
-
