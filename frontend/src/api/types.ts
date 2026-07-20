@@ -1,5 +1,17 @@
 export type ApiError = { code: string; message: string; details?: Record<string, unknown> };
-export type Kiosk = { id: string; name: string; price_per_page: number; is_active: number; created_at: string; last_seen_at: string | null };
+export type KioskConfiguration = {
+  grayscalePricePerPage: number;
+  colorLowSaturationThreshold: number;
+  colorLowPricePerPage: number;
+  colorHighSaturationThreshold: number;
+  colorHighPricePerPage: number;
+  bluetoothDisplayName: string;
+  version: number;
+  updatedAt: string;
+  changedAt: string;
+  source: 'admin' | 'kiosk';
+};
+export type Kiosk = { id: string; name: string; price_per_page: number; is_active: number; created_at: string; last_seen_at: string | null; configuration: KioskConfiguration | null };
 export type PrintJob = { id: number; kiosk_id: string; kiosk_name: string; pin: string | null; pages: number; revenue: number; created_at: string };
 export type PendingPrint = { pin: string; filename: string; phone: string; created_at: string; downloaded_at: string | null; file_deleted_at: string | null; status: 'pending' | 'downloaded' | 'expired'; expires_at: string | null };
 export type Consumable = { id?: number; kiosk_id: string; type: string; status: string; level_percent: number | null; reported_at: string };

@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { config, checkEnv } from './config.js';
 import { handleVerification, handleWebhookEvent, verifySignature } from './webhook.js';
 import { verifyKioskToken, handleGetFileInfo, handleDownloadFile } from './kiosk.js';
-import { verifyKioskReportAuth, handleReportPrint } from './kiosks.js';
+import { verifyKioskReportAuth, handleReportPrint, handleGetKioskConfiguration, handlePutKioskConfiguration } from './kiosks.js';
 import {
   verifyAdminAuth,
   handleAdminLogin,
@@ -111,6 +111,8 @@ app.get('/v1/kiosk/download', verifyKioskToken, handleDownloadFile);
 
 // Reportar un trabajo de impresión completado (páginas, ingreso, consumibles)
 app.post('/v1/kiosk/report', verifyKioskReportAuth, handleReportPrint);
+app.get('/v1/kiosk/config', verifyKioskReportAuth, handleGetKioskConfiguration);
+app.put('/v1/kiosk/config', verifyKioskReportAuth, handlePutKioskConfiguration);
 
 // --- RUTAS DE ADMINISTRACIÓN ---
 

@@ -1,5 +1,5 @@
 import { api, queryString } from './client';
-import type { Consumable, Kiosk, Kpis, Paginated, PendingPrint, PrintJob } from './types';
+import type { Consumable, Kiosk, KioskConfiguration, Kpis, Paginated, PendingPrint, PrintJob } from './types';
 
 type Success<T> = { success: true } & T;
 const list = <T>(path: string, params: Record<string, string | number | undefined>) => api<Success<Paginated<T>>>(`${path}${queryString(params)}`);
@@ -11,7 +11,7 @@ export const adminApi = {
   kiosks: () => api<Success<{ kiosks: Kiosk[] }>>('/v1/admin/kiosks'),
   kiosk: (id: string) => api<Success<{ kiosk: Kiosk }>>(`/v1/admin/kiosks/${id}`),
   createKiosk: (name: string, pricePerPage: number) => api<Success<Kiosk & { secret: string }>>('/v1/admin/kiosks', { method: 'POST', body: JSON.stringify({ name, pricePerPage }) }),
-  updateKiosk: (id: string, values: { name?: string; pricePerPage?: number }) => api<Success<{ kiosk: Kiosk }>>(`/v1/admin/kiosks/${id}`, { method: 'PATCH', body: JSON.stringify(values) }),
+  updateKiosk: (id: string, values: { name?: string; pricePerPage?: number; configuration?: Omit<KioskConfiguration, 'version' | 'updatedAt' | 'changedAt' | 'source'> }) => api<Success<{ kiosk: Kiosk }>>(`/v1/admin/kiosks/${id}`, { method: 'PATCH', body: JSON.stringify(values) }),
   setKioskStatus: (id: string, isActive: boolean) => api<Success<{ kiosk: Kiosk }>>(`/v1/admin/kiosks/${id}/status`, { method: 'PATCH', body: JSON.stringify({ isActive }) }),
   kpis: () => api<Success<Kpis>>('/v1/admin/kpis'),
   consumables: () => api<Success<{ consumables: Consumable[] }>>('/v1/admin/consumables'),

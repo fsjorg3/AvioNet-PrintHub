@@ -11,9 +11,11 @@ import {
   listPendingPrints,
   listPrintJobs,
   setKioskActive,
+  updateKioskConfiguration,
   updateKiosk,
 } from './db.js';
 import { sendError } from './http.js';
+import { validateKioskConfig } from './kiosk-config.js';
 
 const SESSION_COOKIE = 'avionet_admin_session';
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -257,12 +259,12 @@ export function handleGetKiosk(req, res) {
 }
 
 export function handleUpdateKiosk(req, res) {
-  const { name, pricePerPage } = req.body || {};
-  if (name === undefined && pricePerPage === undefined) {
+  const { name, pricePerPage, configuration } = req.body || {};
+  if (name === undefined && pricePerPage === undefined && configuration === undefined) {
     return sendError(res, {
       status: 400,
       code: 'KIOSK_UPDATE_EMPTY',
-      message: 'Envía al menos uno de los campos editables: "name" o "pricePerPage".',
+      message: 'Envía al menos uno de los campos editables: "name", "pricePerPage" o "configuration".',
     });
   }
   if (name !== undefined && (typeof name !== 'string' || !name.trim())) {
@@ -273,8 +275,16 @@ export function handleUpdateKiosk(req, res) {
     return sendError(res, { status: 400, code: 'INVALID_KIOSK_PRICE', message: 'El campo "pricePerPage" debe ser un número mayor o igual a 0.' });
   }
 
-  const kiosk = updateKiosk(req.params.id, { name: name?.trim(), pricePerPage: price });
+  let kiosk = updateKiosk(req.params.id, { name: name?.trim(), pricePerPage: price });
   if (!kiosk) return getKioskOrError(req, res);
+
+  if (configuration !== undefined) {
+    const parsed = validateKioskConfig(configuration);
+    if (!parsed.valid) return sendError(res, { status: 400, code: 'INVALID_KIOSK_CONFIGURATION', message: parsed.message });
+    updateKioskConfiguration(req.params.id, parsed.values, { source: 'admin', changedAt: new Date().toISOString() });
+    kiosk = getKioskById(req.params.id);
+  }
+
   return res.json({ success: true, kiosk });
 }
 

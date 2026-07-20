@@ -128,6 +128,61 @@ Autenticación: header `Authorization: Bearer <kiosk_id>.<secret>` — credencia
 
 ---
 
+### `GET /v1/kiosk/config`
+
+Autenticación: `Authorization: Bearer <kiosk_id>.<secret>`. El kiosco consulta esta ruta al iniciar, cada cinco minutos y antes de cotizar. No requiere CORS porque es una llamada saliente de la aplicación de kiosco.
+
+Admite `If-None-Match` con el `ETag` recibido anteriormente. Si la versión no cambió, responde `304` sin cuerpo. En una respuesta `200` con configuración incluye `ETag: "kiosk-config-<version>"` y `Cache-Control: no-store`.
+
+**Respuesta con configuración (`200`):**
+
+```json
+{
+  "success": true,
+  "bootstrapRequired": false,
+  "configuration": {
+    "grayscalePricePerPage": 1,
+    "colorLowSaturationThreshold": 0.2,
+    "colorLowPricePerPage": 2,
+    "colorHighSaturationThreshold": 0.8,
+    "colorHighPricePerPage": 6,
+    "bluetoothDisplayName": "AvioNet PrintHub",
+    "version": 3,
+    "updatedAt": "2026-07-20T12:00:00.000Z",
+    "changedAt": "2026-07-20T11:59:58.000Z",
+    "source": "admin"
+  }
+}
+```
+
+Cuando aún no existe una configuración central, responde `200` con `{ "success": true, "bootstrapRequired": true, "configuration": null }`; el kiosco debe publicar su perfil local mediante `PUT`.
+
+**Errores:** `403 KIOSK_CREDENTIALS_INVALID` si la credencial es inválida o el kiosco está inactivo.
+
+### `PUT /v1/kiosk/config`
+
+Autenticación: la misma credencial individual. Envía `changed_at` en ISO UTC y el bloque `configuration`:
+
+```json
+{
+  "changed_at": "2026-07-20T12:00:00.000Z",
+  "configuration": {
+    "grayscalePricePerPage": 1,
+    "colorLowSaturationThreshold": 0.2,
+    "colorLowPricePerPage": 2,
+    "colorHighSaturationThreshold": 0.8,
+    "colorHighPricePerPage": 6,
+    "bluetoothDisplayName": "AvioNet PrintHub"
+  }
+}
+```
+
+El backend conserva el cambio más reciente según `changed_at` y devuelve `{ "success": true, "applied": true|false, "configuration": { ... } }`. Si `applied` es `false`, la configuración remota ya era más reciente y debe prevalecer.
+
+`changed_at` debe ser una fecha ISO UTC válida y no puede diferir más de 10 minutos del reloj del servidor. Los precios deben ser no negativos; los umbrales deben estar entre 0 y 1, con el umbral bajo menor que el alto. `bluetoothDisplayName` debe tener máximo 120 caracteres.
+
+**Errores:** `400 INVALID_CONFIGURATION_TIMESTAMP` o `400 INVALID_KIOSK_CONFIGURATION`; además de `403 KIOSK_CREDENTIALS_INVALID`.
+
 ## Administración
 
 El frontend inicia sesión con usuario y contraseña; el servidor devuelve una cookie firmada, `HttpOnly`, con una vigencia de 8 horas. Esta cookie no puede ser leída por JavaScript y el navegador la envía al usar `credentials: 'include'`.
@@ -165,7 +220,26 @@ Comprueba si la sesión actual es válida. Respuesta: `{ "success": true, "user"
 {
   "success": true,
   "kiosks": [
-    { "id": "kiosk_a1b2c3d4", "name": "Kiosco Terminal 1", "price_per_page": 2.0, "is_active": 1, "created_at": "...", "last_seen_at": "..." }
+    {
+      "id": "kiosk_a1b2c3d4",
+      "name": "Kiosco Terminal 1",
+      "price_per_page": 2.0,
+      "is_active": 1,
+      "created_at": "...",
+      "last_seen_at": "...",
+      "configuration": {
+        "grayscalePricePerPage": 1,
+        "colorLowSaturationThreshold": 0.2,
+        "colorLowPricePerPage": 2,
+        "colorHighSaturationThreshold": 0.8,
+        "colorHighPricePerPage": 6,
+        "bluetoothDisplayName": "AvioNet PrintHub",
+        "version": 3,
+        "updatedAt": "...",
+        "changedAt": "...",
+        "source": "admin"
+      }
+    }
   ]
 }
 ```
@@ -186,7 +260,7 @@ Crea un nuevo kiosco. **El secreto solo se muestra en esta respuesta — no se p
   "pricePerPage": 2.0
 }
 ```
-El kiosco debe guardar `Bearer kiosk_a1b2c3d4.5f2b...` como su credencial para `POST /v1/kiosk/report`.
+El kiosco debe guardar `Bearer kiosk_a1b2c3d4.5f2b...` como su credencial para `POST /v1/kiosk/report`, `GET /v1/kiosk/config` y `PUT /v1/kiosk/config`.
 
 **Errores:** `400` si falta `name` o `pricePerPage` es inválido.
 
@@ -274,14 +348,25 @@ Devuelve el detalle de un kiosco, incluido `is_active`. Responde `404` con `KIOS
 
 ### `PATCH /v1/admin/kiosks/:id`
 
-Edita el nombre y/o precio por página de un kiosco; no modifica su secreto.
+Edita el nombre, precio heredado por página y/o perfil remoto del kiosco; no modifica su secreto. Una modificación de `configuration` incrementa la versión y marca `source: "admin"`.
 
 **Body:**
 ```json
-{ "name": "Kiosco Terminal 1", "pricePerPage": 2.5 }
+{
+  "name": "Kiosco Terminal 1",
+  "pricePerPage": 2.5,
+  "configuration": {
+    "grayscalePricePerPage": 1,
+    "colorLowSaturationThreshold": 0.2,
+    "colorLowPricePerPage": 2,
+    "colorHighSaturationThreshold": 0.8,
+    "colorHighPricePerPage": 6,
+    "bluetoothDisplayName": "AvioNet PrintHub"
+  }
+}
 ```
 
-Ambos campos son opcionales, pero debe enviarse al menos uno. Responde el kiosco actualizado.
+Los tres campos son opcionales, pero debe enviarse al menos uno. `configuration` debe contener los seis campos del perfil. Responde el kiosco actualizado, incluyendo `configuration` cuando ya existe una versión central.
 
 ### `PATCH /v1/admin/kiosks/:id/status`
 

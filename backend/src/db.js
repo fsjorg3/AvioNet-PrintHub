@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import { kioskConfigFromRow } from './kiosk-config.js';
 
 const dbPath = path.resolve('database.sqlite');
 const db = new Database(dbPath);
@@ -43,7 +44,17 @@ db.exec(`
   price_per_page REAL NOT NULL DEFAULT 0,
   is_active INTEGER NOT NULL DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_seen_at DATETIME DEFAULT NULL
+    last_seen_at DATETIME DEFAULT NULL,
+    grayscale_price_per_page REAL DEFAULT NULL,
+    color_low_saturation_threshold REAL DEFAULT NULL,
+    color_low_price_per_page REAL DEFAULT NULL,
+    color_high_saturation_threshold REAL DEFAULT NULL,
+    color_high_price_per_page REAL DEFAULT NULL,
+    bluetooth_display_name TEXT DEFAULT NULL,
+    config_version INTEGER NOT NULL DEFAULT 0,
+    config_updated_at TEXT DEFAULT NULL,
+    config_changed_at TEXT DEFAULT NULL,
+    config_source TEXT DEFAULT NULL
   )
 `);
 
@@ -53,6 +64,21 @@ try {
   console.log('[DB] 🔧 Migración aplicada: columna is_active agregada a kiosks.');
 } catch {
   // La columna ya existe, no se necesita migración.
+}
+
+for (const migration of [
+  'ALTER TABLE kiosks ADD COLUMN grayscale_price_per_page REAL DEFAULT NULL',
+  'ALTER TABLE kiosks ADD COLUMN color_low_saturation_threshold REAL DEFAULT NULL',
+  'ALTER TABLE kiosks ADD COLUMN color_low_price_per_page REAL DEFAULT NULL',
+  'ALTER TABLE kiosks ADD COLUMN color_high_saturation_threshold REAL DEFAULT NULL',
+  'ALTER TABLE kiosks ADD COLUMN color_high_price_per_page REAL DEFAULT NULL',
+  'ALTER TABLE kiosks ADD COLUMN bluetooth_display_name TEXT DEFAULT NULL',
+  'ALTER TABLE kiosks ADD COLUMN config_version INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE kiosks ADD COLUMN config_updated_at TEXT DEFAULT NULL',
+  'ALTER TABLE kiosks ADD COLUMN config_changed_at TEXT DEFAULT NULL',
+  'ALTER TABLE kiosks ADD COLUMN config_source TEXT DEFAULT NULL',
+]) {
+  try { db.exec(migration); } catch { /* columna ya existente */ }
 }
 
 db.exec(`
@@ -202,16 +228,17 @@ export function createKiosk(name, pricePerPage) {
  * Obtiene un kiosco por su id (sin exponer el hash del secreto)
  */
 export function getKioskById(id) {
-  const stmt = db.prepare('SELECT id, name, price_per_page, is_active, created_at, last_seen_at FROM kiosks WHERE id = ?');
-  return stmt.get(id);
+  const stmt = db.prepare('SELECT id, name, price_per_page, is_active, created_at, last_seen_at, grayscale_price_per_page, color_low_saturation_threshold, color_low_price_per_page, color_high_saturation_threshold, color_high_price_per_page, bluetooth_display_name, config_version, config_updated_at, config_changed_at, config_source FROM kiosks WHERE id = ?');
+  const row = stmt.get(id);
+  return row ? { ...row, configuration: kioskConfigFromRow(row) } : null;
 }
 
 /**
  * Lista todos los kioscos (sin exponer el hash del secreto)
  */
 export function listKiosks() {
-  const stmt = db.prepare('SELECT id, name, price_per_page, is_active, created_at, last_seen_at FROM kiosks ORDER BY created_at DESC');
-  return stmt.all();
+  const stmt = db.prepare('SELECT id, name, price_per_page, is_active, created_at, last_seen_at, grayscale_price_per_page, color_low_saturation_threshold, color_low_price_per_page, color_high_saturation_threshold, color_high_price_per_page, bluetooth_display_name, config_version, config_updated_at, config_changed_at, config_source FROM kiosks ORDER BY created_at DESC');
+  return stmt.all().map(row => ({ ...row, configuration: kioskConfigFromRow(row) }));
 }
 
 /**
@@ -256,6 +283,29 @@ export function updateKiosk(id, { name, pricePerPage }) {
   params.push(id);
   const result = db.prepare(`UPDATE kiosks SET ${fields.join(', ')} WHERE id = ?`).run(...params);
   return result.changes ? getKioskById(id) : null;
+}
+
+export function getKioskConfiguration(id) {
+  return getKioskById(id)?.configuration || null;
+}
+
+export function updateKioskConfiguration(id, values, { source, changedAt }) {
+  const now = new Date().toISOString();
+  const current = getKioskById(id);
+  if (!current) return null;
+  const version = current.config_version + 1;
+  db.prepare(`
+    UPDATE kiosks SET
+      grayscale_price_per_page = ?, color_low_saturation_threshold = ?, color_low_price_per_page = ?,
+      color_high_saturation_threshold = ?, color_high_price_per_page = ?, bluetooth_display_name = ?,
+      config_version = ?, config_updated_at = ?, config_changed_at = ?, config_source = ?
+    WHERE id = ?
+  `).run(
+    values.grayscalePricePerPage, values.colorLowSaturationThreshold, values.colorLowPricePerPage,
+    values.colorHighSaturationThreshold, values.colorHighPricePerPage, values.bluetoothDisplayName,
+    version, now, changedAt, source, id,
+  );
+  return getKioskConfiguration(id);
 }
 
 /**

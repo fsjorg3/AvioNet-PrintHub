@@ -1,5 +1,6 @@
-import { getPendingPrint, verifyKioskSecret, touchKioskLastSeen, insertPrintJob, insertConsumableReports } from './db.js';
+import { getPendingPrint, verifyKioskSecret, touchKioskLastSeen, insertPrintJob, insertConsumableReports, getKioskConfiguration, updateKioskConfiguration } from './db.js';
 import { sendError } from './http.js';
+import { validateKioskConfig } from './kiosk-config.js';
 
 const CONSUMABLE_TYPES = new Set([
   'paper',
@@ -35,6 +36,46 @@ export function verifyKioskReportAuth(req, res, next) {
   req.kioskId = kioskId;
   touchKioskLastSeen(kioskId);
   next();
+}
+
+function configEtag(version) {
+  return `"kiosk-config-${version}"`;
+}
+
+/** Devuelve la configuración remota de un kiosco autenticado. */
+export function handleGetKioskConfiguration(req, res) {
+  const configuration = getKioskConfiguration(req.kioskId);
+  if (!configuration) {
+    return res.json({ success: true, bootstrapRequired: true, configuration: null });
+  }
+
+  const etag = configEtag(configuration.version);
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('ETag', etag);
+  if (req.headers['if-none-match'] === etag) return res.sendStatus(304);
+  return res.json({ success: true, bootstrapRequired: false, configuration });
+}
+
+/** Acepta una modificación local si es más reciente que la configuración central. */
+export function handlePutKioskConfiguration(req, res) {
+  const { changed_at: changedAt, configuration } = req.body || {};
+  const changedAtMs = Date.parse(changedAt);
+  if (!Number.isFinite(changedAtMs) || Math.abs(Date.now() - changedAtMs) > 10 * 60 * 1000) {
+    return sendError(res, {
+      status: 400,
+      code: 'INVALID_CONFIGURATION_TIMESTAMP',
+      message: '"changed_at" debe ser una fecha ISO UTC válida y no diferir más de diez minutos del reloj del servidor.',
+    });
+  }
+  const parsed = validateKioskConfig(configuration);
+  if (!parsed.valid) return sendError(res, { status: 400, code: 'INVALID_KIOSK_CONFIGURATION', message: parsed.message });
+
+  const current = getKioskConfiguration(req.kioskId);
+  if (current && Date.parse(current.changedAt) >= changedAtMs) {
+    return res.json({ success: true, applied: false, configuration: current });
+  }
+  const updated = updateKioskConfiguration(req.kioskId, parsed.values, { source: 'kiosk', changedAt: new Date(changedAtMs).toISOString() });
+  return res.json({ success: true, applied: true, configuration: updated });
 }
 
 function validateConsumables(consumables) {
