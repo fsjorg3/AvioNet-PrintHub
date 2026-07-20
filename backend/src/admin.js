@@ -229,7 +229,7 @@ export function handleListKiosks(req, res) {
  * Crea un nuevo kiosco. El secreto solo se retorna en esta respuesta.
  */
 export function handleCreateKiosk(req, res) {
-  const { name, pricePerPage } = req.body;
+  const { name, pricePerPage, configuration } = req.body;
 
   if (!name || typeof name !== 'string') {
     return sendError(res, {
@@ -249,7 +249,10 @@ export function handleCreateKiosk(req, res) {
     });
   }
 
-  const kiosk = createKiosk(name, price);
+  const parsed = configuration === undefined ? null : validateKioskConfig(configuration);
+  if (parsed && !parsed.valid) return sendError(res, { status: 400, code: 'INVALID_KIOSK_CONFIGURATION', message: parsed.message });
+
+  const kiosk = createKiosk(name, price, parsed?.values);
   res.status(201).json({ success: true, ...kiosk });
 }
 

@@ -212,16 +212,17 @@ export function cleanupExpiredPrints() {
  * Crea un nuevo kiosco con un id público y un secreto generados aleatoriamente.
  * El secreto solo se retorna aquí; en la BD únicamente se guarda su hash.
  */
-export function createKiosk(name, pricePerPage) {
+export function createKiosk(name, pricePerPage, configuration) {
   const id = `kiosk_${crypto.randomBytes(4).toString('hex')}`;
   const secret = crypto.randomBytes(32).toString('hex');
   const apiKeyHash = crypto.createHash('sha256').update(secret).digest('hex');
 
   const stmt = db.prepare('INSERT INTO kiosks (id, name, api_key_hash, price_per_page) VALUES (?, ?, ?, ?)');
   stmt.run(id, name, apiKeyHash, pricePerPage);
+  if (configuration) updateKioskConfiguration(id, configuration, { source: 'admin', changedAt: new Date().toISOString() });
   console.log(`[DB] 🖨️ Kiosco creado: ${id} (${name})`);
 
-  return { id, secret, name, pricePerPage };
+  return { ...getKioskById(id), secret };
 }
 
 /**

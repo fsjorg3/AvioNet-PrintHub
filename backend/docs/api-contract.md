@@ -248,7 +248,22 @@ Comprueba si la sesión actual es válida. Respuesta: `{ "success": true, "user"
 
 Crea un nuevo kiosco. **El secreto solo se muestra en esta respuesta — no se puede recuperar después.**
 
-**Body:** `{ "name": "Kiosco Terminal 1", "pricePerPage": 2.0 }` (`pricePerPage` opcional, default `0`).
+**Body:** `name` es obligatorio; `pricePerPage` es opcional (default `0`). Se puede incluir `configuration` para publicar el perfil remoto desde el alta:
+
+```json
+{
+  "name": "Kiosco Terminal 1",
+  "pricePerPage": 1,
+  "configuration": {
+    "grayscalePricePerPage": 1,
+    "colorLowSaturationThreshold": 0.2,
+    "colorLowPricePerPage": 2,
+    "colorHighSaturationThreshold": 0.8,
+    "colorHighPricePerPage": 6,
+    "bluetoothDisplayName": "AvioNet PrintHub"
+  }
+}
+```
 
 **Respuesta exitosa (`201`):**
 ```json
@@ -257,12 +272,13 @@ Crea un nuevo kiosco. **El secreto solo se muestra en esta respuesta — no se p
   "id": "kiosk_a1b2c3d4",
   "secret": "5f2b...(64 hex chars)...",
   "name": "Kiosco Terminal 1",
-  "pricePerPage": 2.0
+  "price_per_page": 1,
+  "configuration": { "version": 1, "source": "admin" }
 }
 ```
 El kiosco debe guardar `Bearer kiosk_a1b2c3d4.5f2b...` como su credencial para `POST /v1/kiosk/report`, `GET /v1/kiosk/config` y `PUT /v1/kiosk/config`.
 
-**Errores:** `400` si falta `name` o `pricePerPage` es inválido.
+**Errores:** `400` si falta `name`, `pricePerPage` es inválido o `configuration` no contiene un perfil válido.
 
 ### `GET /v1/admin/kpis?from=&to=`
 
