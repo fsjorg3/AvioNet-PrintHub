@@ -32,6 +32,10 @@ const app = express();
 // Necesario para que express-rate-limit lea correctamente las IPs de los usuarios y no lance error.
 app.set('trust proxy', 1);
 
+// CORS debe procesarse antes de los limitadores: los preflight OPTIONS no son
+// solicitudes de negocio y deben responder sin consumir la cuota de la ruta.
+app.use(corsMiddleware);
+
 // --- SISTEMAS DE SEGURIDAD (Rate Limiting) ---
 
 // 1. Limitador para el Webhook (evita inundaciones)
@@ -80,9 +84,6 @@ app.use((req, res, next) => {
   console.log(`\n[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
   next();
 });
-
-// Autoriza únicamente los orígenes configurados para clientes web.
-app.use(corsMiddleware);
 
 // Parsear cuerpo crudo y validar la firma digital de Meta (solo para el webhook)
 app.use('/v1/webhook', express.json({
